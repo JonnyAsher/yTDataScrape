@@ -1,0 +1,48 @@
+
+source('yt_data_api.R')
+
+# Youtube channel id
+channel_id <- 'UCGERnPMUkIrDlNf7XMmk8Vg'
+
+# Generate an OAuth2.0 token
+oauth_app <- oauth_app(
+  appname      = 'Pew Research',
+  key          = '516340538354-0hmf6jtbr8djig3jst0k29emdbsalcjf.apps.googleusercontent.com',
+  secret       = '0slGArv5u3BTeI1IWZOGiwls'
+)
+google_token <- oauth2.0_token(
+  endpoint = oauth_endpoints('google'),
+  app      = oauth_app,
+  scope    = c(
+    # https://developers.google.com/youtube/analytics/reference/
+    'https://www.googleapis.com/auth/yt-analytics.readonly',
+    'https://www.googleapis.com/auth/yt-analytics-monetary.readonly',
+    'https://www.googleapis.com/auth/youtube',
+    'https://www.googleapis.com/auth/youtubepartner'
+  )
+)
+
+# Get playlist id
+playlist_id <- get_playlist_id(
+  channel_id = channel_id,
+  playlist_name = 'uploads',
+  google_token = google_token
+)
+
+# Get video info
+video_info <- get_video_info(
+  playlist_id = playlist_id,
+  google_token = google_token
+)
+
+# Clean video info
+video_info <- video_info %>%
+  mutate(
+    url          = paste0('https://www.youtube.com/watch?v=', videoId),
+    publish_dt   = as.POSIXct(publishedAt, format = '%Y-%m-%dT%H:%M:%S.000', tz = 'zulu'),
+    publish_date = substr(publish_dt, 1, 10) %>% as.Date(),
+    publish_time = substr(publish_dt, 12, 19) %>% as.character()
+  ) %>%
+  select(id = videoId, url, title, publish_date, publish_time)
+
+write.csv(x = video_info, file = 'video_info.csv', row.names = FALSE)
